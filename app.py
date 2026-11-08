@@ -1,98 +1,167 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect
+from llama_cpp import Llama
 import mysql.connector
 
-app = Flask(__name__)  
+REPO_ID = "bartowski/Qwen2.5-0.5B-Instruct-GGUF"
+FILENAME = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
 
-@app.route('/user_register', methods=['POST'])
-def user_register(): 
+print(f"Загрузка модели {FILENAME} из {REPO_ID}...")
+llm = Llama.from_pretrained(
+    repo_id=REPO_ID,
+    filename=FILENAME,
+    n_ctx=2048,
+    verbose=False
+)
+print("Модель успешно загружена.")
+
+app = Flask(__name__)
+app.secret_key = "1581"
+
+def connect():
+    return mysql.connector.connect(
+        host="185.114.247.43",
+        port=3306,
+        database="sch688_vvedenie",
+        user="sch688_vvedenie",
+        password="Qwerty123"
+    )
+
+
+@app.route('/api/user_register', methods=['POST'])
+def user_register():
     req = request.get_json()
-    
-    if not req or not all(k in req for k in ('name', 'email', 'password')):
-        return jsonify({'result': False, 'error': 'Заполните все поля'}), 400
+    name = req.get('name')
+    email = req.get('email')
+    password = req.get('password')
 
-    name = req['name']
-    login = req['email']
-    password = req['password']
-    
+    cnx = connect()
     try:
-        cnx = mysql.connector.connect(host="185.114.247.43", port=3306, database="sch688_vvedenie", user="sch688_vvedenie", password="Qwerty123")
-        cur = cnx.cursor(buffered=True)
-        
-        sql = 'INSERT INTO `users` (`username`, `email`, `password_hash`) VALUES (%s, %s, %s)'
-        user_data = (name, login, password) 
-        
-        cur.execute(sql, user_data)
+        cur = cnx.cursor(dictionary=True)
+        cur.execute('SELECT id FROM users WHERE email = %s', (email,))
+        if cur.fetchone():
+            return jsonify({'error': 'пользователь с таким email уже существует'})
+
+        cur.execute(
+            'INSERT INTO `users`(`username`, `email`, `password_hash`) VALUES (%s, %s, %s)',
+            (name, email, password)
+        )
         cnx.commit()
-        
-        user_id = cur.lastrowid 
-        
-        return jsonify({
-            'result': True, 
-            'user': {
-                'id': user_id,
-                'name': name,
-                'email': login
-            }
-        })
-
-    except mysql.connector.Error as err:
-        print(f"Database error: {err}") 
-        if err.errno == 1062:
-            return jsonify({'result': False, 'error': 'Этот email уже зарегистрирован'}), 400
-        return jsonify({'result': False, 'error': 'Ошибка базы данных'}), 500
-        
     finally:
-        if 'cnx' in locals() and cnx.is_connected():
-            cur.close()
-            cnx.close()
+        cur.close()
+        cnx.close()
 
+    return jsonify({'ok': True})
 
-# 2. РОУТ ДЛЯ АВТОРИЗАЦИИ (ВХОД В СИСТЕМУ) — ТОТ САМЫЙ КУСОК
-@app.route('/user_login', methods=['POST'])
-def user_login():
+@app.route('/api/login', methods=['POST'])
+def login():
     req = request.get_json()
-    if not req or 'email' not in req or 'password' not in req:
-        return jsonify({'result': False, 'error': 'Заполните все поля'}), 400
+    email = req.get('email')
+    password = req.get('password')
 
-    login = req['email']
-    password = req['password']
-
+    cnx = connect()
     try:
-        cnx = mysql.connector.connect(host="185.114.247.43", port=3306, database="sch688_vvedenie", user="sch688_vvedenie", password="Qwerty123")
-        cur = cnx.cursor(dictionary=True) 
-        
-        sql = 'SELECT * FROM `users` WHERE `email` = %s AND `password_hash` = %s'
-        cur.execute(sql, (login, password))
-        user = cur.fetchone() 
-        
-        if user:
-            return jsonify({'result': True, 'user': {'name': user['username'], 'email': user['email']}})
-        else:
-            return jsonify({'result': False, 'error': 'Неверная почта или пароль'}), 401
-
-    except mysql.connector.Error as err:
-        print(f"Database error: {err}")
-        return jsonify({'result': False, 'error': 'Ошибка базы данных'}), 500
+        cur = cnx.cursor(dictionary=True)
+        cur.execute(
+            'SELECT id, username, email, password_hash FROM users WHERE email = %s',
+            (email,)
+        )
+        user = cur.fetchone()
     finally:
-        if 'cnx' in locals() and cnx.is_connected():
-            cur.close()
-            cnx.close()
+        cur.close()
+        cnx.close()
+
+    if not user or user['password_hash'] != password:
+        return jsonify({'error': 'неверный email или пароль'})
+
+    session.clear()
+    session['user_id'] = user['id']
+    session['username'] = user['username']
+
+    return jsonify({
+        'id': user['id'],
+        'username': user['username'],
+        'email': user['email']
+    })
+
+@app.route('/api/chat', methods=['POST'])
+def api_chat():
+    if 'user_id' not in session:
+        return jsonify({'error': 'не авторизован'}), 401
+    
+    req = request.get_json(silent=True) or {}
+    message = (req.get('message') or '').strip()
+    if not message:
+        return jsonify({'error': 'пустое сообщение'}), 400
+
+    prompt = f"<|im_start|>system\nТы полезный ассистент. Отвечай кратко и по-русски.<|im_end|>\n<|im_start|>user\n{message}<|im_end|>\n<|im_start|>assistant\n"
+    
+    output = llm(
+        prompt,
+        max_tokens=150,
+        temperature=0.7,
+        stop=["<|im_end|>"]
+    )
+    reply = output['choices'][0]['text'].strip()
+    return jsonify({'reply': reply})
+
+@app.route('/profile')
+def profile_page():
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    cnx = connect()
+    try:
+        cur = cnx.cursor(dictionary=True)
+        cur.execute(
+            'SELECT id, username, email, balance FROM users WHERE id = %s',
+            (session['user_id'],)
+        )
+        user = cur.fetchone()
+    finally:
+        cur.close()
+        cnx.close()
+
+    if not user:
+        session.clear()
+        return redirect('/login')
+
+    return render_template('profile.html', user=user)
 
 
+@app.route('/logout', methods=['POST'])
+def api_logout():
+    session.clear()
+    return redirect('/login')
+
+@app.route('/transactions')
+def transactions_page():
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    cnx = connect()
+    try:
+        cur = cnx.cursor(dictionary=True)
+        cur.execute(
+            '''SELECT id, amount, type, cost, description, balance_after, created_at
+               FROM transactions
+               WHERE user_id = %s
+               ORDER BY created_at DESC, id DESC''',
+            (session['user_id'],)
+        )
+        transactions = cur.fetchall()
+    finally:
+        cur.close()
+        cnx.close()
+
+    return render_template('transactions.html', transactions=transactions)
 
 @app.route("/")
 def registration():
     return render_template('registration.html')
 
 @app.route("/login")
-def login():
+def login_page():
     return render_template('login.html')
-
-
-@app.route("/dashboard")
-def dashboard():
-    return "Добро пожаловать в личный кабинет!"
-
 
 
 if __name__ == '__main__':
