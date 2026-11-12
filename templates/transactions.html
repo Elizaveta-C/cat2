@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Транзакции</title>
+    <title>Регистрация</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,90 +11,145 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh;
             margin: 0;
-            padding: 20px 0;
-            box-sizing: border-box;
         }
+
         .card {
             background-color: white;
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 500px;
+            max-width: 350px;
         }
+
         .card h2 {
             text-align: center;
-            margin: 0 0 20px 0;
+            margin-bottom: 20px;
             color: #333;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
+
+        .form-group {
+            margin-bottom: 15px;
         }
-        th, td {
-            padding: 10px 8px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        th {
-            color: #666;
-            font-weight: normal;
-            background: #fafafa;
-        }
-        .empty {
-            text-align: center;
-            color: #999;
-            padding: 30px 0;
-        }
-        .btn-back {
+
+        .form-group label {
             display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        .form-group input {
             width: 100%;
             padding: 10px;
-            margin-top: 20px;
-            background: #6c757d;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 15px;
-            text-align: center;
-            text-decoration: none;
-            box-sizing: border-box;
+            font-size: 16px;
+            transition: background 0.3s;
+            margin-top: 10px;
         }
-        .btn-back:hover { background: #565e64; }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .switch-link {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .switch-link a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .switch-link a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
+
     <div class="card">
-        <h2>Транзакции</h2>
+        <h2>Регистрация</h2>
+        <form id="67">
+            <div class="form-group">
+                <label for="fullname">Ваше имя</label>
+                <input type="text" id="fullname" name="fullname" placeholder="Иван Иванов" required>
+            </div>
 
-        <table>
-            <thead>
-                <tr><th>Дата</th><th>Сумма</th><th>Описание</th><th>Баланс</th></tr>
-            </thead>
-            <tbody>
-                {% if transactions %}
-                    {% for t in transactions %}
-                    <tr>
-                        <td>{{ t.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                        <td>
-                            {% if t.type == 'deposit' %}+{% else %}−{% endif %}{{ t.amount }}
-                            {% if t.cost %}<br><small style="color:#999">списано: {{ t.cost }}</small>{% endif %}
-                        </td>
-                        <td>{{ t.description or '—' }}</td>
-                        <td>{{ t.balance_after }}</td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr><td colspan="4" class="empty">Пока нет транзакций</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="example@mail.ru" required>
+            </div>
 
-        <a href="/profile" class="btn-back">← Назад в профиль</a>
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" name="password" placeholder="Придумайте пароль" required>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Повторите пароль</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Повторите пароль" required>
+            </div>
+
+            <button type="submit">Зарегистрироваться</button>
+        </form>
+
+        <div class="switch-link">
+            Уже есть аккаунт? <a href="/login">Войти</a>
+        </div>
     </div>
+
+    <script src="https://cloudflare.com" integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        $(document).ready(function(){
+            $('#67').on('submit', function(e){
+                e.preventDefault();
+                var name = $('#fullname').val().trim();
+                var email = $('#email').val().trim();
+                var pass = $('#password').val().trim();
+                var confirmPass = $('#confirm_password').val().trim();
+
+                if (name === '' || email === '' || pass === '' || pass !== confirmPass) {
+                    alert('Заполните все поля и убедитесь, что пароли совпадают!');
+                    return;
+                }
+
+                $.ajax({
+                    url: '/api/user_register',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        name: name,
+                        password: pass,
+                        email: email
+                    })
+                }).done(function(res){
+                    if (res.error) {
+                        alert('Ошибка: ' + res.error);
+                    } else {
+                        alert('Регистрация прошла успешно! Переходим ко входу.');
+                        window.location.href = '/login';
+                    }
+                }).fail(function(xhr){
+                    alert('Ошибка соединения с сервером: ' + xhr.status);
+                });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -3,125 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Регистрация</title>
+    <title>Регистрация и Онлайн-консультант</title>
     <style>
-        /* Те же стили, что и на странице входа */
+        * { box-sizing: border-box; font-family: Arial, sans-serif; }
         body {
-            font-family: Arial, sans-serif;
             background-color: #f0f2f5;
             display: flex;
             justify-content: center;
-            align-items: center;
-            height: 100vh;
+            align-items: flex-start;
+            gap: 25px;
+            min-height: 100vh;
             margin: 0;
+            padding: 40px 20px;
+            flex-wrap: wrap;
         }
 
         .card {
             background-color: white;
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 350px;
         }
 
-        .card h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #666;
-        }
-
+        .reg-card { max-width: 360px; }
+        .reg-card h2 { text-align: center; margin-top: 0; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #666; font-size: 14px; }
         .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;
         }
 
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #28a745; /* Зеленый цвет для регистрации (отличие) */
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background 0.3s;
-            margin-top: 10px;
+        .btn {
+            width: 100%; padding: 11px; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 15px; color: white; transition: background 0.3s;
+            margin-top: 8px;
         }
+        .btn-green { background-color: #28a745; }
+        .btn-green:hover { background-color: #218838; }
+        .btn-blue { background-color: #007bff; }
+        .btn-blue:hover { background-color: #0056b3; }
+        .btn-blue:disabled { background-color: #8abdf5; cursor: not-allowed; }
 
-        button:hover {
-            background-color: #218838;
+        .switch-link { text-align: center; margin-top: 15px; font-size: 14px; }
+        .switch-link a { color: #007bff; text-decoration: none; }
+
+        /* Чат скрыт при загрузке и открывается по нажатию кнопки */
+        .chat-card {
+            max-width: 480px;
+            display: none;
+            flex-direction: column;
         }
+        .chat-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;
+        }
+        .chat-header h2 { margin: 0; font-size: 20px; color: #333; }
+        .close-chat {
+            background: none; border: none; color: #888; font-size: 20px;
+            cursor: pointer; padding: 0 5px; width: auto; margin: 0;
+        }
+        .close-chat:hover { color: #333; }
 
-        /* Дополнительный стиль для ссылки внизу */
-        .switch-link {
-            text-align: center;
-            margin-top: 15px;
+        #chat-messages {
+            height: 320px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-y: auto;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .msg {
+            padding: 8px 12px;
+            border-radius: 8px;
+            max-width: 80%;
             font-size: 14px;
+            line-height: 1.4;
+            white-space: pre-wrap;
         }
+        .msg.user { background: #007bff; color: white; align-self: flex-end; }
+        .msg.bot { background: #e9ecef; color: #333; align-self: flex-start; }
 
-        .switch-link a {
-            color: #007bff;
-            text-decoration: none;
+        .chat-input-row { display: flex; gap: 8px; }
+        .chat-input-row input {
+            flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px;
         }
-
-        .switch-link a:hover {
-            text-decoration: underline;
-        }
+        .chat-input-row button { width: auto; margin-top: 0; padding: 10px 18px; }
     </style>
 </head>
 <body>
 
-    <div class="card">
+    <!-- ОКНО РЕГИСТРАЦИИ -->
+    <div class="card reg-card">
         <h2>Регистрация</h2>
-        <form action="/user_register" method="post" id="67">
-            <!-- Поле Имя -->
+        <form id="register-form">
             <div class="form-group">
                 <label for="fullname">Ваше имя</label>
-                <input type="text" id="fullname" name="fullname" placeholder="Иван Иванов" required>
+                <input type="text" id="fullname" placeholder="Иван" required>
             </div>
-
-            <!-- Поле Email -->
             <div class="form-group">
                 <label for="email">Email</label>
-                <input type="email" id="email" name="email" placeholder="example@mail.ru" required>
+                <input type="email" id="email" placeholder="example@mail.ru" required>
             </div>
-
-            <!-- Поле Пароль -->
             <div class="form-group">
                 <label for="password">Пароль</label>
-                <input type="password" id="password" name="password" placeholder="Придумайте пароль" required>
+                <input type="password" id="password" placeholder="Придумайте пароль" required>
             </div>
-
-            <!-- Поле Повтор пароля -->
             <div class="form-group">
                 <label for="confirm_password">Повторите пароль</label>
-                <input type="password" id="confirm_password" name="confirm_password" placeholder="Повторите пароль" required>
+                <input type="password" id="confirm_password" placeholder="Повторите пароль" required>
             </div>
-
-            <button type="submit">Зарегистрироваться</button>
+            <button type="submit" class="btn btn-green">Зарегистрироваться</button>
         </form>
 
-        <!-- Ссылка на вход -->
+        <!-- Кнопка открытия консультанта -->
+        <button type="button" id="toggle-chat-btn" class="btn btn-blue">Открыть чат с консультантом</button>
+
         <div class="switch-link">
             Уже есть аккаунт? <a href="/login">Войти</a>
         </div>
     </div>
 
+    <!-- ОКНО КОНСУЛЬТАНТА -->
+    <div class="card chat-card" id="chat-section">
+        <div class="chat-header">
+            <h2>Онлайн-консультант</h2>
+            <button type="button" class="close-chat" id="close-chat-btn" title="Закрыть">&times;</button>
+        </div>
+
+        <div id="chat-messages">
+            <div class="msg bot">Здравствуйте! Я онлайн-консультант. Чем могу вам помочь?</div>
+        </div>
+
+        <form class="chat-input-row" id="chat-form">
+            <input type="text" id="chat-input" placeholder="Задайте вопрос..." autocomplete="off" required>
+            <button type="submit" id="send-btn" class="btn btn-blue">Отправить</button>
+        </form>
+    </div>
+
+    <script>
+        const chatSection = document.getElementById('chat-section');
+        const toggleChatBtn = document.getElementById('toggle-chat-btn');
+        const closeChatBtn = document.getElementById('close-chat-btn');
+        const chatInput = document.getElementById('chat-input');
+
+        // Открытие и закрытие чата по нажатию
+        function toggleChat() {
+            const isHidden = getComputedStyle(chatSection).display === 'none';
+            if (isHidden) {
+                chatSection.style.display = 'flex';
+                toggleChatBtn.textContent = 'Скрыть чат с консультантом';
+                chatInput.focus();
+            } else {
+                chatSection.style.display = 'none';
+                toggleChatBtn.textContent = 'Открыть чат с консультантом';
+            }
+        }
+
+        toggleChatBtn.addEventListener('click', toggleChat);
+        closeChatBtn.addEventListener('click', toggleChat);
+
+        // Регистрация
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('fullname').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+
+            if (password !== confirmPassword) {
+                alert('Пароли не совпадают!');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/user_register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    alert('Регистрация прошла успешно! Теперь вы можете войти.');
+                    window.location.href = '/login';
+                } else {
+                    alert(data.error || 'Ошибка регистрации');
+                }
+            } catch (err) {
+                alert('Ошибка соединения с сервером');
+            }
+        });
+
+        // Отправка сообщений консультанту
+        const chatMessages = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const sendBtn = document.getElementById('send-btn');
+
+        function addMsg(text, cls) {
+            const div = document.createElement('div');
+            div.className = 'msg ' + cls;
+            div.textContent = text;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return div;
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            addMsg(message, 'user');
+            chatInput.value = '';
+            sendBtn.disabled = true;
+
+            const botMsg = addMsg('Печатает...', 'bot');
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                const data = await res.json();
+                botMsg.textContent = data.reply || ('Ошибка: ' + (data.error || 'не удалось ответить'));
+            } catch (err) {
+                botMsg.textContent = 'Ошибка соединения с сервером';
+            } finally {
+                sendBtn.disabled = false;
+                chatInput.focus();
+            }
+        });
+    </script>
 </body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js" integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="../static/script.js"></script>
 </html>
